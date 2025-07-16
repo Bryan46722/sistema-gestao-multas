@@ -559,3 +559,60 @@ export const autenticarUsuario = async (username, password) => {
     return null;
   }
 };
+// ===== PRESENÇA ONLINE =====
+export const marcarUsuarioOnline = async (userId) => {
+  try {
+    await supabase
+      .from('usuarios')
+      .update({ 
+        is_online: true, 
+        last_seen: new Date().toISOString() 
+      })
+      .eq('id', userId);
+  } catch (error) {
+    console.error('Erro ao marcar usuário online:', error);
+  }
+};
+
+export const marcarUsuarioOffline = async (userId) => {
+  try {
+    await supabase
+      .from('usuarios')
+      .update({ 
+        is_online: false, 
+        last_seen: new Date().toISOString() 
+      })
+      .eq('id', userId);
+  } catch (error) {
+    console.error('Erro ao marcar usuário offline:', error);
+  }
+};
+
+export const atualizarHeartbeat = async (userId) => {
+  try {
+    await supabase
+      .from('usuarios')
+      .update({ 
+        last_seen: new Date().toISOString() 
+      })
+      .eq('id', userId);
+  } catch (error) {
+    console.error('Erro ao atualizar heartbeat:', error);
+  }
+};
+
+export const buscarUsuariosOnline = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('usuarios')
+      .select('id, nome, username, role, is_online, last_seen')
+      .eq('ativo', true)
+      .eq('is_online', true);
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Erro ao buscar usuários online:', error);
+    return [];
+  }
+};

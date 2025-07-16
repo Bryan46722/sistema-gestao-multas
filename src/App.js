@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, Search, FileText, Users, DollarSign, BookOpen, BarChart3, Download, Upload, LogOut, Eye, EyeOff, RefreshCw, Trash2, Edit, Clock, CreditCard, Target, Trophy, Award, Check, X, Calendar } from 'lucide-react';
-
+// Adicionar aos imports do supabase
+import { 
+  // ... outros imports existentes
+  marcarUsuarioOnline,
+  marcarUsuarioOffline,
+  atualizarHeartbeat,
+  buscarUsuariosOnline
+} from './supabase';
 // IMPORT DO SUPABASE (atualize esta linha)
 import { 
   supabase,
@@ -39,6 +46,64 @@ import {
   filtrarDataPorPeriodo,
   criarFiltroPadrao
 } from './utils';
+
+// Adicionar no topo dos estados
+const [usuariosOnline, setUsuariosOnline] = useState([]);
+
+// Adicionar no useEffect principal (depois do login)
+useEffect(() => {
+  let heartbeatInterval;
+  let presenceSubscription;
+  
+  if (isLoggedIn && currentUser) {
+    // Marcar como online ao fazer login
+    marcarUsuarioOnline(currentUser.id);
+    
+    // Heartbeat a cada 30 segundos
+    heartbeatInterval = setInterval(() => {
+      atualizarHeartbeat(currentUser.id);
+    }, 30000);
+    
+    // Subscription para mudanças em tempo real
+    presenceSubscription = createSubscription('usuarios', async () => {
+      const online = await buscarUsuariosOnline();
+      setUsuariosOnline(online);
+    });
+    
+    // Carregar usuários online inicial
+    const carregarOnline = async () => {
+      const online = await buscarUsuariosOnline();
+      setUsuariosOnline(online);
+    };
+    carregarOnline();
+    
+    // Marcar como offline ao sair
+    const handleBeforeUnload = () => {
+      marcarUsuarioOffline(currentUser.id);
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      clearInterval(heartbeatInterval);
+      if (presenceSubscription) removeSubscription(presenceSubscription);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      marcarUsuarioOffline(currentUser.id);
+    };
+  }
+}, [isLoggedIn, currentUser]);
+
+// Atualizar função de logout
+const handleLogout = useCallback(async () => {
+  if (currentUser) {
+    await marcarUsuarioOffline(currentUser.id);
+  }
+  setCurrentUser(null);
+  setIsLoggedIn(false);
+  setActiveTab('dashboard');
+  setUsuariosOnline([]);
+  toast.success('Você saiu com sucesso!');
+}, [currentUser]);
 
 // Sistema de toast simples (substitua por react-hot-toast se preferir)
 const toast = {
@@ -605,8 +670,32 @@ const RelatorioPerformance = ({ vendas, currentUser, filtroRelatorios, setFiltro
  );
 };
 
+// Adicionar antes do MenuLateral
+const UsuariosOnline = ({ usuariosOnline, currentUser }) => (
+  <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+    <div className="flex items-center mb-3">
+      <div className="w-3 h-3 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+      <h3 className="font-semibold text-gray-800">Online ({usuariosOnline.length})</h3>
+    </div>
+    <div className="space-y-2 max-h-32 overflow-y-auto">
+      {usuariosOnline.map(user => (
+        <div key={user.id} className="flex items-center space-x-2">
+          <div className={`w-2 h-2 rounded-full ${
+            user.id === currentUser?.id ? 'bg-blue-500' : 'bg-green-500'
+          }`}></div>
+          <span className="text-sm text-gray-700">
+            {user.nome} {user.id === currentUser?.id && '(você)'}
+          </span>
+          <span className="text-xs text-gray-500">
+            {user.role === 'admin' ? '👑' : '💼'}
+          </span>
+        </div>
+      ))}
+    </div>
+  </div>
+);
 // MENU LATERAL
-const MenuLateral = ({ currentUser, activeTab, setActiveTab, exportarDados, importarDados, handleLogout }) => {
+const MenuLateral = ({ currentUser, activeTab, setActiveTab, exportarDados, importarDados, handleLogout, usuariosOnline }) => {
  const isAdmin = currentUser?.role === 'admin';
  
  return (
@@ -691,6 +780,8 @@ const MenuLateral = ({ currentUser, activeTab, setActiveTab, exportarDados, impo
      </nav>
      
      <div className="space-y-2">
+      // No MenuLateral, adicionar antes dos botões de backup
+<UsuariosOnline usuariosOnline={usuariosOnline} currentUser={currentUser} />
        {isAdmin && (
          <>
            <button
@@ -2733,14 +2824,15 @@ erros.valor ? 'border-red-500' : 'border-gray-300'
 
  return (
    <div className="flex h-screen bg-gray-100">
-     <MenuLateral 
-       currentUser={currentUser}
-       activeTab={activeTab}
-       setActiveTab={setActiveTab}
-       exportarDados={exportarDados}
-       importarDados={importarDados}
-       handleLogout={handleLogout}
-     />
+<MenuLateral 
+  currentUser={currentUser}
+  activeTab={activeTab}
+  setActiveTab={setActiveTab}
+  exportarDados={exportarDados}
+  importarDados={importarDados}
+  handleLogout={handleLogout}
+  usuariosOnline={usuariosOnline}
+/>
      <div className="flex-1 overflow-y-auto">
        {renderContent()}
      </div>
