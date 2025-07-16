@@ -1060,44 +1060,65 @@ const adicionarVendedor = useCallback(async () => {
   }
 }, [novoVendedor, vendedores, vendedorEditando]);
 
- const editarVendedor = useCallback(() => {
-   const novosErros = {};
-   
-   if (!novoVendedor.nome.trim()) novosErros.nome = 'Nome é obrigatório';
-   if (!novoVendedor.username.trim()) novosErros.username = 'Username é obrigatório';
-   if (!novoVendedor.comissao || parseFloat(novoVendedor.comissao) <= 0) novosErros.comissao = 'Comissão deve ser maior que 0';
-   
-   if (vendedores.find(v => v.username === novoVendedor.username && v.id !== vendedorEditando.id)) {
-     novosErros.username = 'Username já existe';
-   }
+ const editarVendedor = useCallback(async () => {
+  const novosErros = {};
+  
+  if (!novoVendedor.nome.trim()) novosErros.nome = 'Nome é obrigatório';
+  if (!novoVendedor.username.trim()) novosErros.username = 'Username é obrigatório';
+  if (!novoVendedor.comissao || parseFloat(novoVendedor.comissao) <= 0) novosErros.comissao = 'Comissão deve ser maior que 0';
+  
+  if (vendedores.find(v => v.username === novoVendedor.username && v.id !== vendedorEditando.id)) {
+    novosErros.username = 'Username já existe';
+  }
 
-   if (Object.keys(novosErros).length > 0) {
-     setErros(novosErros);
-     return;
-   }
+  if (Object.keys(novosErros).length > 0) {
+    setErros(novosErros);
+    return;
+  }
 
-   setVendedores(prev => prev.map(vendedor => 
-     vendedor.id === vendedorEditando.id ? {
-       ...vendedor,
-       nome: novoVendedor.nome,
-       username: novoVendedor.username,
-       ...(novoVendedor.password && { password: novoVendedor.password }),
-       comissao: parseFloat(novoVendedor.comissao)
-     } : vendedor
-   ));
-   
-   setVendedorEditando(null);
-   setNovoVendedor({ nome: '', username: '', password: '', comissao: '52.5' });
-   setErros({});
-   toast.success('Vendedor atualizado com sucesso!');
- }, [novoVendedor, vendedores, vendedorEditando]);
+  try {
+    const dadosAtualizacao = {
+      nome: novoVendedor.nome,
+      username: novoVendedor.username,
+      comissao: parseFloat(novoVendedor.comissao)
+    };
+    
+    if (novoVendedor.password) {
+      dadosAtualizacao.password = novoVendedor.password;
+    }
+    
+    await atualizarUsuario(vendedorEditando.id, dadosAtualizacao);
+    
+    // Atualizar lista
+    const usuariosAtualizados = await buscarUsuarios();
+    setVendedores(usuariosAtualizados);
+    
+    setVendedorEditando(null);
+    setNovoVendedor({ nome: '', username: '', password: '', comissao: '52.5' });
+    setErros({});
+    toast.success('Vendedor atualizado com sucesso!');
+  } catch (error) {
+    console.error('Erro ao atualizar vendedor:', error);
+    toast.error('Erro ao atualizar vendedor.');
+  }
+}, [novoVendedor, vendedores, vendedorEditando]);
 
- const deletarVendedor = useCallback((id) => {
-   if (window.confirm('Tem certeza que deseja deletar este vendedor?')) {
-     setVendedores(prev => prev.filter(v => v.id !== id));
-     toast.success('Vendedor deletado com sucesso!');
-   }
- }, []);
+const deletarVendedor = useCallback(async (id) => {
+  if (window.confirm('Tem certeza que deseja deletar este vendedor?')) {
+    try {
+      await deletarUsuario(id);
+      
+      // Atualizar lista
+      const usuariosAtualizados = await buscarUsuarios();
+      setVendedores(usuariosAtualizados);
+      
+      toast.success('Vendedor deletado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao deletar vendedor:', error);
+      toast.error('Erro ao deletar vendedor.');
+    }
+  }
+}, []);
 
  // CRUD CLIENTES
  const adicionarCliente = useCallback(async () => {
