@@ -1,14 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, Search, FileText, Users, DollarSign, BookOpen, BarChart3, Download, Upload, LogOut, Eye, EyeOff, RefreshCw, Trash2, Edit, Clock, CreditCard, Target, Trophy, Award, Check, X, Calendar } from 'lucide-react';
-// Adicionar aos imports do supabase
-import { 
-  // ... outros imports existentes
-  marcarUsuarioOnline,
-  marcarUsuarioOffline,
-  atualizarHeartbeat,
-  buscarUsuariosOnline
-} from './supabase';
-// IMPORT DO SUPABASE (atualize esta linha)
+
+// IMPORT DO SUPABASE (VERSÃO CORRIGIDA)
 import { 
   supabase,
   salvarCliente, 
@@ -28,12 +21,16 @@ import {
   testarConexao,
   createSubscription,
   removeSubscription,
-  // ADICIONAR ESTAS LINHAS:
   buscarUsuarios,
   salvarUsuario,
   atualizarUsuario,
   deletarUsuario,
-  autenticarUsuario
+  autenticarUsuario,
+  // FUNÇÕES DE PRESENÇA ONLINE:
+  marcarUsuarioOnline,
+  marcarUsuarioOffline,
+  atualizarHeartbeat,
+  buscarUsuariosOnline
 } from './supabase';
 
 // IMPORT DE UTILITÁRIOS
@@ -47,65 +44,7 @@ import {
   criarFiltroPadrao
 } from './utils';
 
-// Adicionar no topo dos estados
-const [usuariosOnline, setUsuariosOnline] = useState([]);
-
-// Adicionar no useEffect principal (depois do login)
-useEffect(() => {
-  let heartbeatInterval;
-  let presenceSubscription;
-  
-  if (isLoggedIn && currentUser) {
-    // Marcar como online ao fazer login
-    marcarUsuarioOnline(currentUser.id);
-    
-    // Heartbeat a cada 30 segundos
-    heartbeatInterval = setInterval(() => {
-      atualizarHeartbeat(currentUser.id);
-    }, 30000);
-    
-    // Subscription para mudanças em tempo real
-    presenceSubscription = createSubscription('usuarios', async () => {
-      const online = await buscarUsuariosOnline();
-      setUsuariosOnline(online);
-    });
-    
-    // Carregar usuários online inicial
-    const carregarOnline = async () => {
-      const online = await buscarUsuariosOnline();
-      setUsuariosOnline(online);
-    };
-    carregarOnline();
-    
-    // Marcar como offline ao sair
-    const handleBeforeUnload = () => {
-      marcarUsuarioOffline(currentUser.id);
-    };
-    
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    
-    return () => {
-      clearInterval(heartbeatInterval);
-      if (presenceSubscription) removeSubscription(presenceSubscription);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      marcarUsuarioOffline(currentUser.id);
-    };
-  }
-}, [isLoggedIn, currentUser]);
-
-// Atualizar função de logout
-const handleLogout = useCallback(async () => {
-  if (currentUser) {
-    await marcarUsuarioOffline(currentUser.id);
-  }
-  setCurrentUser(null);
-  setIsLoggedIn(false);
-  setActiveTab('dashboard');
-  setUsuariosOnline([]);
-  toast.success('Você saiu com sucesso!');
-}, [currentUser]);
-
-// Sistema de toast simples (substitua por react-hot-toast se preferir)
+// Sistema de toast simples
 const toast = {
   success: (message) => {
     console.log('✅ SUCCESS:', message);
@@ -629,9 +568,9 @@ const RelatorioPerformance = ({ vendas, currentUser, filtroRelatorios, setFiltro
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serviço</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
-<th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Comissão</th>
+<th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serviço</th>
+               <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+               <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Comissão</th>
                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
              </tr>
@@ -670,30 +609,31 @@ const RelatorioPerformance = ({ vendas, currentUser, filtroRelatorios, setFiltro
  );
 };
 
-// Adicionar antes do MenuLateral
+// COMPONENTE USUÁRIOS ONLINE
 const UsuariosOnline = ({ usuariosOnline, currentUser }) => (
-  <div className="bg-white rounded-lg shadow-md p-4 mb-4">
-    <div className="flex items-center mb-3">
-      <div className="w-3 h-3 bg-green-500 rounded-full mr-2 animate-pulse"></div>
-      <h3 className="font-semibold text-gray-800">Online ({usuariosOnline.length})</h3>
-    </div>
-    <div className="space-y-2 max-h-32 overflow-y-auto">
-      {usuariosOnline.map(user => (
-        <div key={user.id} className="flex items-center space-x-2">
-          <div className={`w-2 h-2 rounded-full ${
-            user.id === currentUser?.id ? 'bg-blue-500' : 'bg-green-500'
-          }`}></div>
-          <span className="text-sm text-gray-700">
-            {user.nome} {user.id === currentUser?.id && '(você)'}
-          </span>
-          <span className="text-xs text-gray-500">
-            {user.role === 'admin' ? '👑' : '💼'}
-          </span>
-        </div>
-      ))}
-    </div>
-  </div>
+ <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+   <div className="flex items-center mb-3">
+     <div className="w-3 h-3 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+     <h3 className="font-semibold text-gray-800">Online ({usuariosOnline.length})</h3>
+   </div>
+   <div className="space-y-2 max-h-32 overflow-y-auto">
+     {usuariosOnline.map(user => (
+       <div key={user.id} className="flex items-center space-x-2">
+         <div className={`w-2 h-2 rounded-full ${
+           user.id === currentUser?.id ? 'bg-blue-500' : 'bg-green-500'
+         }`}></div>
+         <span className="text-sm text-gray-700">
+           {user.nome} {user.id === currentUser?.id && '(você)'}
+         </span>
+         <span className="text-xs text-gray-500">
+           {user.role === 'admin' ? '👑' : '💼'}
+         </span>
+       </div>
+     ))}
+   </div>
+ </div>
 );
+
 // MENU LATERAL
 const MenuLateral = ({ currentUser, activeTab, setActiveTab, exportarDados, importarDados, handleLogout, usuariosOnline }) => {
  const isAdmin = currentUser?.role === 'admin';
@@ -780,8 +720,9 @@ const MenuLateral = ({ currentUser, activeTab, setActiveTab, exportarDados, impo
      </nav>
      
      <div className="space-y-2">
-      // No MenuLateral, adicionar antes dos botões de backup
-<UsuariosOnline usuariosOnline={usuariosOnline} currentUser={currentUser} />
+       {/* COMPONENTE USUÁRIOS ONLINE */}
+       <UsuariosOnline usuariosOnline={usuariosOnline} currentUser={currentUser} />
+
        {isAdmin && (
          <>
            <button
@@ -830,17 +771,21 @@ const SistemaGestaoMultas = () => {
  const [vendas, setVendas] = useState([]);
  const [processos, setProcessos] = useState([]);
  const [cursos, setCursos] = useState([]);
+ const [vendedores, setVendedores] = useState([]);
+ 
+ // ESTADO PARA USUÁRIOS ONLINE
+ const [usuariosOnline, setUsuariosOnline] = useState([]);
 
-const [filtroDashboard, setFiltroDashboard] = useState({
-  periodo: 'todos',
-  mesEspecifico: '',
-  anoEspecifico: new Date().getFullYear().toString()
-});
-const [filtroRelatorios, setFiltroRelatorios] = useState({
-  periodo: 'todos',
-  mesEspecifico: '',
-  anoEspecifico: new Date().getFullYear().toString()
-});
+ const [filtroDashboard, setFiltroDashboard] = useState({
+   periodo: 'todos',
+   mesEspecifico: '',
+   anoEspecifico: new Date().getFullYear().toString()
+ });
+ const [filtroRelatorios, setFiltroRelatorios] = useState({
+   periodo: 'todos',
+   mesEspecifico: '',
+   anoEspecifico: new Date().getFullYear().toString()
+ });
 
  // Estados de formulários
  const [novoCliente, setNovoCliente] = useState({
@@ -864,8 +809,6 @@ const [filtroRelatorios, setFiltroRelatorios] = useState({
  });
 
  // Estados para vendedores
-const [vendedores, setVendedores] = useState([]);
-
  const [novoVendedor, setNovoVendedor] = useState({
    nome: '', username: '', password: '', comissao: '52.5'
  });
@@ -931,23 +874,22 @@ const [vendedores, setVendedores] = useState([]);
          return;
        }
        
-// No useEffect, adicione buscarUsuarios:
-const [clientesDoBanco, vendasDoBanco, processosDoBanco, cursosDoBanco, usuariosDoBanco] = await Promise.all([
-  buscarClientes(),
-  buscarVendas(),
-  buscarProcessos(),
-  buscarCursos(),
-  buscarUsuarios() // ADICIONAR ESTA LINHA
-]);
+       const [clientesDoBanco, vendasDoBanco, processosDoBanco, cursosDoBanco, usuariosDoBanco] = await Promise.all([
+         buscarClientes(),
+         buscarVendas(),
+         buscarProcessos(),
+         buscarCursos(),
+         buscarUsuarios()
+       ]);
 
-if (mounted) {
-  setClientes(clientesDoBanco || []);
-  setVendas(vendasDoBanco || []);
-  setProcessos(processosDoBanco || []);
-  setCursos(cursosDoBanco || []);
-  setVendedores(usuariosDoBanco || []); // ADICIONAR ESTA LINHA
-  toast.success('Dados carregados!');
-}
+       if (mounted) {
+         setClientes(clientesDoBanco || []);
+         setVendas(vendasDoBanco || []);
+         setProcessos(processosDoBanco || []);
+         setCursos(cursosDoBanco || []);
+         setVendedores(usuariosDoBanco || []);
+         toast.success('Dados carregados!');
+       }
        
      } catch (error) {
        console.error('❌ Erro ao carregar dados:', error);
@@ -974,34 +916,81 @@ if (mounted) {
    };
  }, [isLoggedIn]);
 
- // Função de login (SUBSTITUIR)
-const handleLogin = useCallback(async (e) => {
-  e.preventDefault();
-  
-  try {
-    const user = await autenticarUsuario(loginData.username, loginData.password);
-    
-    if (user) {
-      setCurrentUser(user);
-      setIsLoggedIn(true);
-      setLoginData({ username: '', password: '' });
-      toast.success(`Bem-vindo, ${user.nome}!`);
-    } else {
-      toast.error('Usuário ou senha inválidos!');
-    }
-  } catch (error) {
-    console.error('Erro no login:', error);
-    toast.error('Erro ao fazer login!');
-  }
-}, [loginData]);
+ // useEffect PARA PRESENÇA ONLINE
+ useEffect(() => {
+   let heartbeatInterval;
+   let presenceSubscription;
+   
+   if (isLoggedIn && currentUser) {
+     // Marcar como online ao fazer login
+     marcarUsuarioOnline(currentUser.id);
+     
+     // Heartbeat a cada 30 segundos
+     heartbeatInterval = setInterval(() => {
+       atualizarHeartbeat(currentUser.id);
+     }, 30000);
+     
+     // Subscription para mudanças em tempo real
+     presenceSubscription = createSubscription('usuarios', async () => {
+       const online = await buscarUsuariosOnline();
+       setUsuariosOnline(online);
+     });
+     
+     // Carregar usuários online inicial
+     const carregarOnline = async () => {
+       const online = await buscarUsuariosOnline();
+       setUsuariosOnline(online);
+     };
+     carregarOnline();
+     
+     // Marcar como offline ao sair
+     const handleBeforeUnload = () => {
+       marcarUsuarioOffline(currentUser.id);
+     };
+     
+     window.addEventListener('beforeunload', handleBeforeUnload);
+     
+     return () => {
+       clearInterval(heartbeatInterval);
+       if (presenceSubscription) removeSubscription(presenceSubscription);
+       window.removeEventListener('beforeunload', handleBeforeUnload);
+       marcarUsuarioOffline(currentUser.id);
+     };
+   }
+ }, [isLoggedIn, currentUser]);
 
- // Função de logout
- const handleLogout = useCallback(() => {
+ // Função de login
+ const handleLogin = useCallback(async (e) => {
+   e.preventDefault();
+   
+   try {
+     const user = await autenticarUsuario(loginData.username, loginData.password);
+     
+     if (user) {
+       setCurrentUser(user);
+       setIsLoggedIn(true);
+       setLoginData({ username: '', password: '' });
+       toast.success(`Bem-vindo, ${user.nome}!`);
+     } else {
+       toast.error('Usuário ou senha inválidos!');
+     }
+   } catch (error) {
+     console.error('Erro no login:', error);
+     toast.error('Erro ao fazer login!');
+   }
+ }, [loginData]);
+
+ // Função de logout ATUALIZADA
+ const handleLogout = useCallback(async () => {
+   if (currentUser) {
+     await marcarUsuarioOffline(currentUser.id);
+   }
    setCurrentUser(null);
    setIsLoggedIn(false);
    setActiveTab('dashboard');
+   setUsuariosOnline([]);
    toast.success('Você saiu com sucesso!');
- }, []);
+ }, [currentUser]);
 
  // Função de atualização de dados
  const atualizarDados = useCallback(async () => {
@@ -1111,105 +1100,105 @@ const handleLogin = useCallback(async (e) => {
    }
  }, [processos]);
 
- // Adicionar vendedor (ATUALIZAR)
-const adicionarVendedor = useCallback(async () => {
-  const novosErros = {};
-  
-  if (!novoVendedor.nome.trim()) novosErros.nome = 'Nome é obrigatório';
-  if (!novoVendedor.username.trim()) novosErros.username = 'Username é obrigatório';
-  if (!novoVendedor.password.trim()) novosErros.password = 'Senha é obrigatória';
-  if (!novoVendedor.comissao || parseFloat(novoVendedor.comissao) <= 0) novosErros.comissao = 'Comissão deve ser maior que 0';
-  
-  if (vendedores.find(v => v.username === novoVendedor.username && v.id !== vendedorEditando?.id)) {
-    novosErros.username = 'Username já existe';
-  }
+ // Adicionar vendedor
+ const adicionarVendedor = useCallback(async () => {
+   const novosErros = {};
+   
+   if (!novoVendedor.nome.trim()) novosErros.nome = 'Nome é obrigatório';
+   if (!novoVendedor.username.trim()) novosErros.username = 'Username é obrigatório';
+   if (!novoVendedor.password.trim()) novosErros.password = 'Senha é obrigatória';
+   if (!novoVendedor.comissao || parseFloat(novoVendedor.comissao) <= 0) novosErros.comissao = 'Comissão deve ser maior que 0';
+   
+   if (vendedores.find(v => v.username === novoVendedor.username && v.id !== vendedorEditando?.id)) {
+     novosErros.username = 'Username já existe';
+   }
 
-  if (Object.keys(novosErros).length > 0) {
-    setErros(novosErros);
-    return;
-  }
+   if (Object.keys(novosErros).length > 0) {
+     setErros(novosErros);
+     return;
+   }
 
-  try {
-    const vendedorCompleto = {
-      ...novoVendedor,
-      role: 'vendedor',
-      comissao: parseFloat(novoVendedor.comissao)
-    };
-    
-    await salvarUsuario(vendedorCompleto);
-    
-    // Atualizar lista
-    const usuariosAtualizados = await buscarUsuarios();
-    setVendedores(usuariosAtualizados);
-    
-    setNovoVendedor({ nome: '', username: '', password: '', comissao: '52.5' });
-    setErros({});
-    toast.success('Vendedor adicionado com sucesso!');
-  } catch (error) {
-    console.error('Erro ao adicionar vendedor:', error);
-    toast.error('Erro ao adicionar vendedor.');
-  }
-}, [novoVendedor, vendedores, vendedorEditando]);
+   try {
+     const vendedorCompleto = {
+       ...novoVendedor,
+       role: 'vendedor',
+       comissao: parseFloat(novoVendedor.comissao)
+     };
+     
+     await salvarUsuario(vendedorCompleto);
+     
+     // Atualizar lista
+     const usuariosAtualizados = await buscarUsuarios();
+     setVendedores(usuariosAtualizados);
+     
+     setNovoVendedor({ nome: '', username: '', password: '', comissao: '52.5' });
+     setErros({});
+     toast.success('Vendedor adicionado com sucesso!');
+   } catch (error) {
+     console.error('Erro ao adicionar vendedor:', error);
+     toast.error('Erro ao adicionar vendedor.');
+   }
+ }, [novoVendedor, vendedores, vendedorEditando]);
 
  const editarVendedor = useCallback(async () => {
-  const novosErros = {};
-  
-  if (!novoVendedor.nome.trim()) novosErros.nome = 'Nome é obrigatório';
-  if (!novoVendedor.username.trim()) novosErros.username = 'Username é obrigatório';
-  if (!novoVendedor.comissao || parseFloat(novoVendedor.comissao) <= 0) novosErros.comissao = 'Comissão deve ser maior que 0';
-  
-  if (vendedores.find(v => v.username === novoVendedor.username && v.id !== vendedorEditando.id)) {
-    novosErros.username = 'Username já existe';
-  }
+   const novosErros = {};
+   
+   if (!novoVendedor.nome.trim()) novosErros.nome = 'Nome é obrigatório';
+   if (!novoVendedor.username.trim()) novosErros.username = 'Username é obrigatório';
+   if (!novoVendedor.comissao || parseFloat(novoVendedor.comissao) <= 0) novosErros.comissao = 'Comissão deve ser maior que 0';
+   
+   if (vendedores.find(v => v.username === novoVendedor.username && v.id !== vendedorEditando.id)) {
+     novosErros.username = 'Username já existe';
+   }
 
-  if (Object.keys(novosErros).length > 0) {
-    setErros(novosErros);
-    return;
-  }
+   if (Object.keys(novosErros).length > 0) {
+     setErros(novosErros);
+     return;
+   }
 
-  try {
-    const dadosAtualizacao = {
-      nome: novoVendedor.nome,
-      username: novoVendedor.username,
-      comissao: parseFloat(novoVendedor.comissao)
-    };
-    
-    if (novoVendedor.password) {
-      dadosAtualizacao.password = novoVendedor.password;
-    }
-    
-    await atualizarUsuario(vendedorEditando.id, dadosAtualizacao);
-    
-    // Atualizar lista
-    const usuariosAtualizados = await buscarUsuarios();
-    setVendedores(usuariosAtualizados);
-    
-    setVendedorEditando(null);
-    setNovoVendedor({ nome: '', username: '', password: '', comissao: '52.5' });
-    setErros({});
-    toast.success('Vendedor atualizado com sucesso!');
-  } catch (error) {
-    console.error('Erro ao atualizar vendedor:', error);
-    toast.error('Erro ao atualizar vendedor.');
-  }
-}, [novoVendedor, vendedores, vendedorEditando]);
+   try {
+     const dadosAtualizacao = {
+       nome: novoVendedor.nome,
+       username: novoVendedor.username,
+       comissao: parseFloat(novoVendedor.comissao)
+     };
+     
+     if (novoVendedor.password) {
+       dadosAtualizacao.password = novoVendedor.password;
+     }
+     
+     await atualizarUsuario(vendedorEditando.id, dadosAtualizacao);
+     
+     // Atualizar lista
+     const usuariosAtualizados = await buscarUsuarios();
+     setVendedores(usuariosAtualizados);
+     
+     setVendedorEditando(null);
+     setNovoVendedor({ nome: '', username: '', password: '', comissao: '52.5' });
+     setErros({});
+     toast.success('Vendedor atualizado com sucesso!');
+   } catch (error) {
+     console.error('Erro ao atualizar vendedor:', error);
+     toast.error('Erro ao atualizar vendedor.');
+   }
+ }, [novoVendedor, vendedores, vendedorEditando]);
 
-const deletarVendedor = useCallback(async (id) => {
-  if (window.confirm('Tem certeza que deseja deletar este vendedor?')) {
-    try {
-      await deletarUsuario(id);
-      
-      // Atualizar lista
-      const usuariosAtualizados = await buscarUsuarios();
-      setVendedores(usuariosAtualizados);
-      
-      toast.success('Vendedor deletado com sucesso!');
-    } catch (error) {
-      console.error('Erro ao deletar vendedor:', error);
-      toast.error('Erro ao deletar vendedor.');
-    }
-  }
-}, []);
+ const deletarVendedor = useCallback(async (id) => {
+   if (window.confirm('Tem certeza que deseja deletar este vendedor?')) {
+     try {
+       await deletarUsuario(id);
+       
+       // Atualizar lista
+       const usuariosAtualizados = await buscarUsuarios();
+       setVendedores(usuariosAtualizados);
+       
+       toast.success('Vendedor deletado com sucesso!');
+     } catch (error) {
+       console.error('Erro ao deletar vendedor:', error);
+       toast.error('Erro ao deletar vendedor.');
+     }
+   }
+ }, []);
 
  // CRUD CLIENTES
  const adicionarCliente = useCallback(async () => {
@@ -1265,8 +1254,8 @@ const deletarVendedor = useCallback(async (id) => {
      novosErros.valorEntrada = 'Valor de entrada é obrigatório';
    }
    
-   if ((novaVenda.servico === 'Recurso de Multa' || novaVenda.servico === 'Recurso de Multa + Recurso de Suspensão') && 
-       (!novaVenda.quantidadeMultas || parseInt(novaVenda.quantidadeMultas) <= 0)) {
+   if ((novaVenda.servico === 'Recurso de Multa' || novaVenda.servico === 'Recurso de Multa + Recurso de Suspensão') &&
+    (!novaVenda.quantidadeMultas || parseInt(novaVenda.quantidadeMultas) <= 0)) {
      novosErros.quantidadeMultas = 'Quantidade de multas é obrigatória';
    }
    
@@ -1341,7 +1330,7 @@ const deletarVendedor = useCallback(async (id) => {
            formaPagamento: novaVenda.formaPagamento,
            observacoes: `Parcela ${i}/${totalParcelas}`,
            comissao: comissaoParcela,
-quantidadeMultas: novaVenda.quantidadeMultas ? parseInt(novaVenda.quantidadeMultas) : null,
+           quantidadeMultas: novaVenda.quantidadeMultas ? parseInt(novaVenda.quantidadeMultas) : null,
            quantidadeSuspensao: novaVenda.quantidadeSuspensao ? parseInt(novaVenda.quantidadeSuspensao) : null,
            valorParcela: valorParcela,
            totalParcelas: totalParcelas,
@@ -1910,7 +1899,7 @@ quantidadeMultas: novaVenda.quantidadeMultas ? parseInt(novaVenda.quantidadeMult
                      onChange={(e) => setNovoCliente({...novoCliente, nome: e.target.value})}
                      className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
                        erros.nome ? 'border-red-500' : 'border-gray-300'
-                     }`}
+                       }`}
                    />
                    {erros.nome && <p className="text-red-500 text-sm mt-1">{erros.nome}</p>}
                  </div>
@@ -1982,7 +1971,7 @@ quantidadeMultas: novaVenda.quantidadeMultas ? parseInt(novaVenda.quantidadeMult
                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                      {currentUser?.role === 'admin' && (
-<th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
                      )}
                    </tr>
                  </thead>
@@ -2418,8 +2407,8 @@ quantidadeMultas: novaVenda.quantidadeMultas ? parseInt(novaVenda.quantidadeMult
                  placeholder="Filtrar por órgão"
                  value={filtroProcessos.orgao}
                  onChange={(e) => setFiltroProcessos({...filtroProcessos, orgao: e.target.value})}
-                 className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-               />
+                 className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2focus:ring-blue-500"
+                 />
              </div>
            </div>
 
@@ -2493,7 +2482,7 @@ quantidadeMultas: novaVenda.quantidadeMultas ? parseInt(novaVenda.quantidadeMult
                        value={novoProcesso.valor}
                        onChange={(e) => setNovoProcesso({...novoProcesso, valor: e.target.value})}
                        className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
-erros.valor ? 'border-red-500' : 'border-gray-300'
+                         erros.valor ? 'border-red-500' : 'border-gray-300'
                        }`}
                      />
                      {erros.valor && <p className="text-red-500 text-sm mt-1">{erros.valor}</p>}
@@ -2824,15 +2813,15 @@ erros.valor ? 'border-red-500' : 'border-gray-300'
 
  return (
    <div className="flex h-screen bg-gray-100">
-<MenuLateral 
-  currentUser={currentUser}
-  activeTab={activeTab}
-  setActiveTab={setActiveTab}
-  exportarDados={exportarDados}
-  importarDados={importarDados}
-  handleLogout={handleLogout}
-  usuariosOnline={usuariosOnline}
-/>
+     <MenuLateral 
+       currentUser={currentUser}
+       activeTab={activeTab}
+       setActiveTab={setActiveTab}
+       exportarDados={exportarDados}
+       importarDados={importarDados}
+       handleLogout={handleLogout}
+       usuariosOnline={usuariosOnline}
+     />
      <div className="flex-1 overflow-y-auto">
        {renderContent()}
      </div>

@@ -560,6 +560,9 @@ export const autenticarUsuario = async (username, password) => {
   }
 };
 // ===== PRESENÇA ONLINE =====
+// NO FINAL DO SEU supabase.js, certifique-se de que tem estas linhas:
+
+// ===== PRESENÇA ONLINE =====
 export const marcarUsuarioOnline = async (userId) => {
   try {
     await supabase
@@ -569,6 +572,7 @@ export const marcarUsuarioOnline = async (userId) => {
         last_seen: new Date().toISOString() 
       })
       .eq('id', userId);
+    console.log('✅ Usuário marcado como online:', userId);
   } catch (error) {
     console.error('Erro ao marcar usuário online:', error);
   }
@@ -583,6 +587,7 @@ export const marcarUsuarioOffline = async (userId) => {
         last_seen: new Date().toISOString() 
       })
       .eq('id', userId);
+    console.log('✅ Usuário marcado como offline:', userId);
   } catch (error) {
     console.error('Erro ao marcar usuário offline:', error);
   }
@@ -610,6 +615,7 @@ export const buscarUsuariosOnline = async () => {
       .eq('is_online', true);
     
     if (error) throw error;
+    console.log('✅ Usuários online encontrados:', data);
     return data || [];
   } catch (error) {
     console.error('Erro ao buscar usuários online:', error);
