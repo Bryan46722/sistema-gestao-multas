@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = 'https://gyxovqxguszvteumhuny.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5eG92cXhndXN6dnRldW1odW55Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1MzY3MDQsImV4cCI6MjA2ODExMjcwNH0.4qSYcYv8TNLie0AYw5cja6Vj3ssBFSjO_4Nh6r-8hxw'
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://gyxovqxguszvteumhuny.supabase.co'
+const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5eG92cXhndXN6dnRldW1odW55Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1MzY3MDQsImV4cCI6MjA2ODExMjcwNH0.4qSYcYv8TNLie0AYw5cja6Vj3ssBFSjO_4Nh6r-8hxw'
 
 // Criação do cliente Supabase com configurações mais explícitas
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
