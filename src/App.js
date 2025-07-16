@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, Search, FileText, Users, DollarSign, BookOpen, BarChart3, Download, Upload, LogOut, Eye, EyeOff, RefreshCw, Trash2, Edit, Clock, CreditCard, Target, Trophy, Award, Check, X, Calendar } from 'lucide-react';
 
-// IMPORT DO SUPABASE
+// IMPORT DO SUPABASE (atualize esta linha)
 import { 
   supabase,
   salvarCliente, 
@@ -20,7 +20,13 @@ import {
   atualizarCurso,
   testarConexao,
   createSubscription,
-  removeSubscription
+  removeSubscription,
+  // ADICIONAR ESTAS LINHAS:
+  buscarUsuarios,
+  salvarUsuario,
+  atualizarUsuario,
+  deletarUsuario,
+  autenticarUsuario
 } from './supabase';
 
 // IMPORT DE UTILITÁRIOS
@@ -767,10 +773,7 @@ const [filtroRelatorios, setFiltroRelatorios] = useState({
  });
 
  // Estados para vendedores
- const [vendedores, setVendedores] = useState([
-   { id: 1, username: 'admin', password: 'admin123', nome: 'Administrador', role: 'admin', dataCadastro: '2025-01-01' },
-   { id: 2, username: 'bryan', password: 'bryan123', nome: 'Bryan', role: 'vendedor', comissao: 52.5, dataCadastro: '2025-07-14' },
- ]);
+const [vendedores, setVendedores] = useState([]);
 
  const [novoVendedor, setNovoVendedor] = useState({
    nome: '', username: '', password: '', comissao: '52.5'
@@ -837,20 +840,23 @@ const [filtroRelatorios, setFiltroRelatorios] = useState({
          return;
        }
        
-       const [clientesDoBanco, vendasDoBanco, processosDoBanco, cursosDoBanco] = await Promise.all([
-         buscarClientes(),
-         buscarVendas(),
-         buscarProcessos(),
-         buscarCursos()
-       ]);
+// No useEffect, adicione buscarUsuarios:
+const [clientesDoBanco, vendasDoBanco, processosDoBanco, cursosDoBanco, usuariosDoBanco] = await Promise.all([
+  buscarClientes(),
+  buscarVendas(),
+  buscarProcessos(),
+  buscarCursos(),
+  buscarUsuarios() // ADICIONAR ESTA LINHA
+]);
 
-       if (mounted) {
-         setClientes(clientesDoBanco || []);
-         setVendas(vendasDoBanco || []);
-         setProcessos(processosDoBanco || []);
-         setCursos(cursosDoBanco || []);
-         toast.success('Dados carregados!');
-       }
+if (mounted) {
+  setClientes(clientesDoBanco || []);
+  setVendas(vendasDoBanco || []);
+  setProcessos(processosDoBanco || []);
+  setCursos(cursosDoBanco || []);
+  setVendedores(usuariosDoBanco || []); // ADICIONAR ESTA LINHA
+  toast.success('Dados carregados!');
+}
        
      } catch (error) {
        console.error('❌ Erro ao carregar dados:', error);
@@ -877,19 +883,26 @@ const [filtroRelatorios, setFiltroRelatorios] = useState({
    };
  }, [isLoggedIn]);
 
- // Função de login
- const handleLogin = useCallback((e) => {
-   e.preventDefault();
-   const user = vendedores.find(u => u.username === loginData.username && u.password === loginData.password);
-   if (user) {
-     setCurrentUser(user);
-     setIsLoggedIn(true);
-     setLoginData({ username: '', password: '' });
-     toast.success(`Bem-vindo, ${user.nome}!`);
-   } else {
-     toast.error('Usuário ou senha inválidos!');
-   }
- }, [loginData, vendedores]);
+ // Função de login (SUBSTITUIR)
+const handleLogin = useCallback(async (e) => {
+  e.preventDefault();
+  
+  try {
+    const user = await autenticarUsuario(loginData.username, loginData.password);
+    
+    if (user) {
+      setCurrentUser(user);
+      setIsLoggedIn(true);
+      setLoginData({ username: '', password: '' });
+      toast.success(`Bem-vindo, ${user.nome}!`);
+    } else {
+      toast.error('Usuário ou senha inválidos!');
+    }
+  } catch (error) {
+    console.error('Erro no login:', error);
+    toast.error('Erro ao fazer login!');
+  }
+}, [loginData]);
 
  // Função de logout
  const handleLogout = useCallback(() => {
@@ -1007,38 +1020,45 @@ const [filtroRelatorios, setFiltroRelatorios] = useState({
    }
  }, [processos]);
 
- // CRUD VENDEDORES
- const adicionarVendedor = useCallback(() => {
-   const novosErros = {};
-   
-   if (!novoVendedor.nome.trim()) novosErros.nome = 'Nome é obrigatório';
-   if (!novoVendedor.username.trim()) novosErros.username = 'Username é obrigatório';
-   if (!novoVendedor.password.trim()) novosErros.password = 'Senha é obrigatória';
-   if (!novoVendedor.comissao || parseFloat(novoVendedor.comissao) <= 0) novosErros.comissao = 'Comissão deve ser maior que 0';
-   
-   if (vendedores.find(v => v.username === novoVendedor.username && v.id !== vendedorEditando?.id)) {
-     novosErros.username = 'Username já existe';
-   }
+ // Adicionar vendedor (ATUALIZAR)
+const adicionarVendedor = useCallback(async () => {
+  const novosErros = {};
+  
+  if (!novoVendedor.nome.trim()) novosErros.nome = 'Nome é obrigatório';
+  if (!novoVendedor.username.trim()) novosErros.username = 'Username é obrigatório';
+  if (!novoVendedor.password.trim()) novosErros.password = 'Senha é obrigatória';
+  if (!novoVendedor.comissao || parseFloat(novoVendedor.comissao) <= 0) novosErros.comissao = 'Comissão deve ser maior que 0';
+  
+  if (vendedores.find(v => v.username === novoVendedor.username && v.id !== vendedorEditando?.id)) {
+    novosErros.username = 'Username já existe';
+  }
 
-   if (Object.keys(novosErros).length > 0) {
-     setErros(novosErros);
-     return;
-   }
+  if (Object.keys(novosErros).length > 0) {
+    setErros(novosErros);
+    return;
+  }
 
-   const novoId = Math.max(0, ...vendedores.map(v => v.id)) + 1;
-   const vendedorCompleto = {
-     ...novoVendedor,
-     id: novoId,
-     role: 'vendedor',
-     comissao: parseFloat(novoVendedor.comissao),
-     dataCadastro: new Date().toISOString().split('T')[0]
-   };
-   
-   setVendedores(prev => [...prev, vendedorCompleto]);
-   setNovoVendedor({ nome: '', username: '', password: '', comissao: '52.5' });
-   setErros({});
-   toast.success('Vendedor adicionado com sucesso!');
- }, [novoVendedor, vendedores, vendedorEditando]);
+  try {
+    const vendedorCompleto = {
+      ...novoVendedor,
+      role: 'vendedor',
+      comissao: parseFloat(novoVendedor.comissao)
+    };
+    
+    await salvarUsuario(vendedorCompleto);
+    
+    // Atualizar lista
+    const usuariosAtualizados = await buscarUsuarios();
+    setVendedores(usuariosAtualizados);
+    
+    setNovoVendedor({ nome: '', username: '', password: '', comissao: '52.5' });
+    setErros({});
+    toast.success('Vendedor adicionado com sucesso!');
+  } catch (error) {
+    console.error('Erro ao adicionar vendedor:', error);
+    toast.error('Erro ao adicionar vendedor.');
+  }
+}, [novoVendedor, vendedores, vendedorEditando]);
 
  const editarVendedor = useCallback(() => {
    const novosErros = {};

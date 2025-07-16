@@ -463,3 +463,99 @@ export const removeSubscription = async (subscription) => {
     console.error('❌ Erro ao remover subscription:', error)
   }
 }
+// ===== USUÁRIOS =====
+export const buscarUsuarios = async () => {
+  try {
+    console.log('🔄 Buscando usuários...');
+    const { data, error } = await supabase
+      .from('usuarios')
+      .select('*')
+      .eq('ativo', true)
+      .order('id', { ascending: true });
+    
+    if (error) throw error;
+    console.log('✅ Usuários encontrados:', data?.length || 0);
+    return data || [];
+  } catch (error) {
+    console.error('❌ Erro ao buscar usuários:', error);
+    return [];
+  }
+};
+
+export const salvarUsuario = async (usuario) => {
+  try {
+    console.log('🔄 Salvando usuário:', usuario);
+    const { data, error } = await supabase
+      .from('usuarios')
+      .insert([{
+        username: usuario.username,
+        password: usuario.password,
+        nome: usuario.nome,
+        role: usuario.role || 'vendedor',
+        comissao: parseFloat(usuario.comissao || 0)
+      }])
+      .select();
+    
+    if (error) throw error;
+    console.log('✅ Usuário salvo:', data[0]);
+    return data[0];
+  } catch (error) {
+    console.error('❌ Erro ao salvar usuário:', error);
+    throw error;
+  }
+};
+
+export const atualizarUsuario = async (id, dadosAtualizados) => {
+  try {
+    console.log('🔄 Atualizando usuário:', id);
+    const { data, error } = await supabase
+      .from('usuarios')
+      .update(dadosAtualizados)
+      .eq('id', id)
+      .select();
+    
+    if (error) throw error;
+    console.log('✅ Usuário atualizado:', data[0]);
+    return data[0];
+  } catch (error) {
+    console.error('❌ Erro ao atualizar usuário:', error);
+    throw error;
+  }
+};
+
+export const deletarUsuario = async (id) => {
+  try {
+    console.log('🔄 Deletando usuário:', id);
+    const { error } = await supabase
+      .from('usuarios')
+      .update({ ativo: false })
+      .eq('id', id);
+    
+    if (error) throw error;
+    console.log('✅ Usuário deletado');
+    return true;
+  } catch (error) {
+    console.error('❌ Erro ao deletar usuário:', error);
+    throw error;
+  }
+};
+
+export const autenticarUsuario = async (username, password) => {
+  try {
+    console.log('🔄 Autenticando usuário:', username);
+    const { data, error } = await supabase
+      .from('usuarios')
+      .select('*')
+      .eq('username', username)
+      .eq('password', password)
+      .eq('ativo', true)
+      .single();
+    
+    if (error) throw error;
+    console.log('✅ Usuário autenticado:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Erro na autenticação:', error);
+    return null;
+  }
+};
