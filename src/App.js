@@ -1825,13 +1825,7 @@ const SistemaGestaoMultas = () => {
            </button>
          </form>
          
-         <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-           <p className="text-sm text-gray-600 font-medium mb-2">Usuários de teste:</p>
-           <div className="text-xs text-gray-500 space-y-1">
-             <div>Admin: <span className="font-mono">admin / admin123</span></div>
-             <div>Vendedor: <span className="font-mono">bryan / bryan123</span></div>
-           </div>
-         </div>
+
        </div>
      </div>
    );
