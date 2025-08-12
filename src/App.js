@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, Search, FileText, Users, DollarSign, BookOpen, BarChart3, Download, Upload, LogOut, Eye, EyeOff, RefreshCw, Trash2, Edit, Clock, CreditCard, Target, Trophy, Award, Check, X, Calendar } from 'lucide-react';
 
-// IMPORT DO SUPABASE (VERSÃO CORRIGIDA)
+// IMPORT DO SUPABASE (VERSÃO CORRIGIDA COM DELETAR VENDA)
 import { 
   supabase,
   salvarCliente, 
@@ -11,6 +11,7 @@ import {
   salvarVenda,
   buscarVendas,
   atualizarVenda,
+  deletarVenda, // ← NOVA FUNÇÃO ADICIONADA
   salvarParcelas,
   salvarProcesso,
   buscarProcessos,
@@ -567,8 +568,8 @@ const RelatorioPerformance = ({ vendas, currentUser, filtroRelatorios, setFiltro
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
-<th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serviço</th>
+<th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
+               <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serviço</th>
                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Comissão</th>
                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -1251,7 +1252,7 @@ const SistemaGestaoMultas = () => {
    if (!novaVenda.formaPagamento) novosErros.formaPagamento = 'Forma de pagamento é obrigatória';
    
    if (novaVenda.formaPagamento === 'PIX + Cartão' && (!novaVenda.valorEntrada || parseFloat(novaVenda.valorEntrada) <= 0)) {
-     novosErros.valorEntrada = 'Valor de entrada é obrigatório';
+novosErros.valorEntrada = 'Valor de entrada é obrigatório';
    }
    
    if ((novaVenda.servico === 'Recurso de Multa' || novaVenda.servico === 'Recurso de Multa + Recurso de Suspensão') &&
@@ -1638,6 +1639,31 @@ const SistemaGestaoMultas = () => {
    }
  }, []);
 
+ // ✅ NOVA FUNÇÃO PARA DELETAR VENDA
+ const deletarVendaFunc = useCallback(async (id) => {
+   if (window.confirm('⚠️ ATENÇÃO: Esta ação irá deletar a venda e TODOS os dados relacionados (parcelas, processos, cursos). Tem certeza que deseja continuar?')) {
+     try {
+       await deletarVenda(id);
+       
+       // Atualizar todas as listas após deletar
+       const [vendasAtualizadas, processosAtualizados, cursosAtualizados] = await Promise.all([
+         buscarVendas(),
+         buscarProcessos(),
+         buscarCursos()
+       ]);
+       
+       setVendas(vendasAtualizadas);
+       setProcessos(processosAtualizados);
+       setCursos(cursosAtualizados);
+       
+       toast.success('Venda e todos os dados relacionados deletados com sucesso!');
+     } catch (error) {
+       console.error('Erro ao deletar venda:', error);
+       toast.error('Erro ao deletar venda.');
+     }
+   }
+ }, []);
+
  // Funções de exportação/importação
  const exportarDados = useCallback(async () => {
    try {
@@ -1825,13 +1851,7 @@ const SistemaGestaoMultas = () => {
            </button>
          </form>
          
-         <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-           <p className="text-sm text-gray-600 font-medium mb-2">Usuários de teste:</p>
-           <div className="text-xs text-gray-500 space-y-1">
-             <div>Admin: <span className="font-mono">admin / admin123</span></div>
-             <div>Vendedor: <span className="font-mono">bryan / bryan123</span></div>
-           </div>
-         </div>
+
        </div>
      </div>
    );
@@ -1885,7 +1905,7 @@ const SistemaGestaoMultas = () => {
              </div>
            </div>
 
-           <div className="bg-white rounded-xl shadow-lg mb-6">
+<div className="bg-white rounded-xl shadow-lg mb-6">
              <div className="p-4 border-b border-gray-200">
                <h3 className="font-semibold text-gray-800">Adicionar Novo Cliente</h3>
              </div>
@@ -2268,9 +2288,7 @@ const SistemaGestaoMultas = () => {
                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status Pag.</th>
                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Observações</th>
-                     {currentUser?.role === 'admin' && (
-                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
-                     )}
+                     <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
                    </tr>
                  </thead>
                  <tbody className="bg-white divide-y divide-gray-200">
@@ -2351,10 +2369,10 @@ const SistemaGestaoMultas = () => {
                            <span className="truncate">{venda.observacoes}</span>
                          )}
                        </td>
-                       {currentUser?.role === 'admin' && (
-                         <td className="px-6 py-4 whitespace-nowrap">
+                       <td className="px-6 py-4 whitespace-nowrap">
+                         <div className="flex gap-2">
                            {vendaEditando === venda.id ? (
-                             <div className="flex gap-2">
+                             <>
                                <button
                                  onClick={() => salvarEdicaoVenda(venda.id)}
                                  className="text-green-600 hover:text-green-800 transition-colors"
@@ -2367,21 +2385,34 @@ const SistemaGestaoMultas = () => {
                                >
                                  <X className="h-4 w-4" />
                                </button>
-                             </div>
+                             </>
                            ) : (
-                             <button
-                               onClick={() => editarVenda(venda)}
-                               className="text-blue-600 hover:text-blue-800 transition-colors"
-                             >
-                               <Edit className="h-4 w-4" />
-                             </button>
+                             <>
+                               {currentUser?.role === 'admin' && (
+                                 <button
+                                   onClick={() => editarVenda(venda)}
+                                   className="text-blue-600 hover:text-blue-800 transition-colors"
+                                 >
+                                   <Edit className="h-4 w-4" />
+                                 </button>
+                               )}
+                               {/* ✅ BOTÃO DE DELETAR VENDA */}
+                               {currentUser?.role === 'admin' && (
+                                 <button
+                                   onClick={() => deletarVendaFunc(venda.id)}
+                                   className="text-red-600 hover:text-red-800 transition-colors"
+                                 >
+                                   <Trash2 className="h-4 w-4" />
+                                 </button>
+                               )}
+                             </>
                            )}
-                         </td>
-                       )}
+                         </div>
+                       </td>
                      </tr>
                    ))}
                  </tbody>
-               </table>
+                 </table>
              </div>
            </div>
          </div>
@@ -2407,7 +2438,7 @@ const SistemaGestaoMultas = () => {
                  placeholder="Filtrar por órgão"
                  value={filtroProcessos.orgao}
                  onChange={(e) => setFiltroProcessos({...filtroProcessos, orgao: e.target.value})}
-                 className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2focus:ring-blue-500"
+                 className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                  />
              </div>
            </div>

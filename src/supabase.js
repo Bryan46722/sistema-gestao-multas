@@ -246,6 +246,80 @@ export const salvarParcelas = async (parcelas) => {
   }
 }
 
+// ===== DELETAR VENDA (NOVA FUNÇÃO) =====
+export const deletarVenda = async (id) => {
+  try {
+    console.log('🔄 Deletando venda:', id);
+    
+    // Buscar a venda antes de deletar para obter informações importantes
+    const { data: vendaParaDeletar, error: errorBusca } = await supabase
+      .from('vendas')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (errorBusca) throw errorBusca;
+    
+    console.log('📄 Venda encontrada para deletar:', vendaParaDeletar);
+    
+    // 1. DELETAR TODAS AS PARCELAS RELACIONADAS (se for venda parcelada)
+    if (vendaParaDeletar.venda_principal_id || vendaParaDeletar.total_parcelas > 1) {
+      const vendaPrincipalId = vendaParaDeletar.venda_principal_id || vendaParaDeletar.id;
+      
+      console.log('🔄 Deletando todas as parcelas da venda principal:', vendaPrincipalId);
+      
+      // Deletar todas as parcelas desta venda
+      const { error: errorParcelas } = await supabase
+        .from('vendas')
+        .delete()
+        .or(`id.eq.${vendaPrincipalId},venda_principal_id.eq.${vendaPrincipalId}`);
+      
+      if (errorParcelas) throw errorParcelas;
+      console.log('✅ Todas as parcelas deletadas');
+    } else {
+      // Se for venda única, deletar apenas ela
+      const { error: errorVenda } = await supabase
+        .from('vendas')
+        .delete()
+        .eq('id', id);
+      
+      if (errorVenda) throw errorVenda;
+      console.log('✅ Venda única deletada');
+    }
+    
+    // 2. DELETAR PROCESSOS RELACIONADOS (se existirem)
+    const { error: errorProcessos } = await supabase
+      .from('processos')
+      .delete()
+      .eq('venda_id', vendaParaDeletar.venda_principal_id || vendaParaDeletar.id);
+    
+    if (errorProcessos) {
+      console.warn('⚠️ Erro ao deletar processos relacionados:', errorProcessos);
+    } else {
+      console.log('✅ Processos relacionados deletados');
+    }
+    
+    // 3. DELETAR CURSOS RELACIONADOS (se existirem)
+    const { error: errorCursos } = await supabase
+      .from('cursos')
+      .delete()
+      .eq('venda_id', vendaParaDeletar.venda_principal_id || vendaParaDeletar.id);
+    
+    if (errorCursos) {
+      console.warn('⚠️ Erro ao deletar cursos relacionados:', errorCursos);
+    } else {
+      console.log('✅ Cursos relacionados deletados');
+    }
+    
+    console.log('✅ Venda e todos os dados relacionados deletados com sucesso!');
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Erro ao deletar venda:', error);
+    throw error;
+  }
+};
+
 // ===== PROCESSOS =====
 export const salvarProcesso = async (processo) => {
   try {
@@ -463,6 +537,7 @@ export const removeSubscription = async (subscription) => {
     console.error('❌ Erro ao remover subscription:', error)
   }
 }
+
 // ===== USUÁRIOS =====
 export const buscarUsuarios = async () => {
   try {
@@ -559,8 +634,6 @@ export const autenticarUsuario = async (username, password) => {
     return null;
   }
 };
-// ===== PRESENÇA ONLINE =====
-// NO FINAL DO SEU supabase.js, certifique-se de que tem estas linhas:
 
 // ===== PRESENÇA ONLINE =====
 export const marcarUsuarioOnline = async (userId) => {
